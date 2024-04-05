@@ -47,6 +47,22 @@ def print_help() -> None:
     [print(i) for i in HELP_MESSAGE]
 
 
+def run_subprocess(args: list) -> tuple:
+    logger = logging.getLogger(LOGGER_NAME)
+    process = subprocess.Popen(args, capture_output=True)
+    output = ''
+
+    for line in iter(process.stdout.readline, ""):
+        logger.info(line)
+        output += line
+
+    process.wait()
+    exit_code = process.returncode
+
+    return exit_code, output, process.stderr
+
+
+
 def start_backup(backup_file: str, append_date: bool = False):
     logger = logging.getLogger(LOGGER_NAME)
     command = 'tsm'
@@ -61,8 +77,9 @@ def start_backup(backup_file: str, append_date: bool = False):
         args.append('--append-date')
 
     logger.info(f'Run "{args[0]}" with arguments: "{" ".join(args[1:])}"')
-    result = subprocess.run(args, capture_output=True)
-    return result.returncode, result.stdout, result.stderr
+    # result = subprocess.run(args, capture_output=True)
+    returncode, stdout,  stdout= run_subprocess(args)
+    return returncode, stdout, stdout
 
 
 def main():
