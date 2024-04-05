@@ -49,7 +49,7 @@ def print_help() -> None:
 
 def run_subprocess(args: list) -> tuple:
     logger = logging.getLogger(LOGGER_NAME)
-    process = subprocess.Popen(args, capture_output=True)
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     output = ''
 
     for line in iter(process.stdout.readline, ""):
@@ -60,7 +60,6 @@ def run_subprocess(args: list) -> tuple:
     exit_code = process.returncode
 
     return exit_code, output, process.stderr
-
 
 
 def start_backup(backup_file: str, append_date: bool = False):
