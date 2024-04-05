@@ -1,0 +1,7 @@
+[Backup]
+backup_file = ts_backup
+append_date = True
+
+[AWS]
+ACCESS_KEY_ID = AKIAS7HQS5NCVGYHNWZK
+SECRET_ACCESS_KEY = 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
