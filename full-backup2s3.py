@@ -54,12 +54,13 @@ def start_backup(backup_file: str, append_date: bool = False):
         command,
         'maintenance',
         'backup',
-        f'-f {backup_file}'
+        '--file',
+        backup_file
     ]
     if append_date:
         args.append('--append-date')
 
-    logger.info(f'Run "{args[0]}" with arguments: "{' '.join(args[1:])}"')
+    logger.info(f'Run "{args[0]}" with arguments: "{" ".join(args[1:])}"')
     result = subprocess.run(args, capture_output=True)
     return result.returncode, result.stdout, result.stderr
 
@@ -78,8 +79,8 @@ def main():
         start_backup_time = time.time()
         backup_conf = config['Backup']
         logger.info('Starting backup')
-        returncode, stdout,  stderr = start_backup(**dict(backup_conf.items()))
-        logger.debug(f'{returncode=} {stdout=} {stderr=}')
+        return_code, stdout,  stderr = start_backup(**dict(backup_conf.items()))
+        logger.debug(f'{return_code=} {stdout=} {stderr=}')
         logger.info("backup time: %s seconds" % (time.time() - start_backup_time))
 
     start_time = time.time()
