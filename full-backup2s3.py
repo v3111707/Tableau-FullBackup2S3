@@ -53,8 +53,9 @@ def run_subprocess(args: list) -> tuple:
     output = ''
 
     for line in iter(process.stdout.readline, ""):
-        logger.info(line)
-        output += line
+
+        logger.info(line.decode().strip())
+        output += line.decode()
 
     process.wait()
     exit_code = process.returncode
@@ -75,6 +76,10 @@ def start_backup(backup_file: str, append_date: bool = False):
     if append_date:
         args.append('--append-date')
 
+    # args = [
+    #     'ping',
+    #     '8.8.8.8'
+    # ]
     logger.info(f'Run "{args[0]}" with arguments: "{" ".join(args[1:])}"')
     # result = subprocess.run(args, capture_output=True)
     returncode, stdout,  stdout= run_subprocess(args)
