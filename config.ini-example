@@ -1,7 +1,13 @@
 [Backup]
 backup_file = ts_backup
 append_date = True
+backup_dir = /var/opt/tableau/tableau_server/data/tabsvc/files/backups
 
 [AWS]
 ACCESS_KEY_ID = AKIAS7HQS5NCVGYHNWZK
 SECRET_ACCESS_KEY = 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
+bucket_name = my_backet
+region_name = eu-central-1
+
+[Zabbix]
+config_file = /etc/zabbix/zabbix_agentd.conf

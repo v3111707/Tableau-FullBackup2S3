@@ -6,7 +6,6 @@ import sys
 import logging
 import os
 import configparser
-import hashlib
 import boto3
 import socket
 
@@ -168,6 +167,9 @@ def main():
                     # logger.exception(e)
                     logger.error(e)
                     upload_result_code = 1
+                else:
+                    logger.info(f'Remove: {dir_entry.path}')
+                    os.remove(dir_entry.path)
                 upload_duration = int(time.time() - start_upload_time)
 
                 md5sum_output = [l.decode() for l in process.communicate() if l]
