@@ -79,6 +79,7 @@ def start_backup(backup_file: str, append_date: bool = False):
         command,
         'maintenance',
         'backup',
+        '--ignore-prompt',
         '--file',
         backup_file
     ]
