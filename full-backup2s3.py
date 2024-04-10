@@ -36,13 +36,15 @@ def init_logger(name: str = None, debug: bool = False, ) -> logging.Logger:
 
 
 def get_config(path: str) -> configparser.ConfigParser:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(script_dir, path)
     logger = logging.getLogger(LOGGER_NAME)
     config = configparser.ConfigParser()
     logger.debug(f'Reading config file: {path}')
-    if not os.path.isfile(path):
+    if not os.path.isfile(config_path):
         sys.exit(f'Config file not found: {path}')
     try:
-        config.read(path)
+        config.read(config_path)
     except Exception as e:
         logger.exception(e)
         sys.exit(f'Exception while parsing the config file: {path}')
