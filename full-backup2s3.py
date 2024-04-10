@@ -75,20 +75,14 @@ def send_to_zabbix(key: str, value: int, config_file: str) -> None:
 def start_backup(backup_file: str, append_date: bool = False):
     logger = logging.getLogger(LOGGER_NAME)
     command = 'tsm'
-    args = [
-        command,
-        'maintenance',
-        'backup',
-        '--ignore-prompt',
-        '--file',
-        backup_file
-    ]
-    if append_date:
-        args.append('--append-date')
+    args = f'source /etc/profile.d/tableau_server.sh; tsm maintenance backup --ignore-prompt --file {backup_file}'
 
-    logger.debug(f'Run "{args[0]}" with arguments: "{" ".join(args[1:])}"')
+    if append_date:
+        args += ' --append-date'
+
+    logger.debug(f'subprocess.run: "{args}"')
     start_backup_time = time.time()
-    completed_process = subprocess.run(args, capture_output=True)
+    completed_process = subprocess.run(args, capture_output=True, shell=True)
     tsm_backup_duration_time = int(time.time() - start_backup_time)
     return (completed_process.returncode,
             completed_process.stdout.decode(),
