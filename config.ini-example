@@ -1,6 +1,7 @@
 [Backup]
 backup_file = ts_backup
-append_date = True
+append_timestamp = True
+multithreaded = True
 backup_dir = /var/opt/tableau/tableau_server/data/tabsvc/files/backups
 
 [AWS]

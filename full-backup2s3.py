@@ -35,6 +35,10 @@ def init_logger(name: str = None, debug: bool = False, ) -> logging.Logger:
     return logger
 
 
+def get_timestamp() -> str:
+    return time.strftime('%Y%m%d-%H%M%S')
+
+
 def get_config(path: str) -> configparser.ConfigParser:
     script_dir = os.path.dirname(os.path.realpath(__file__))
     config_path = os.path.join(script_dir, path)
@@ -72,14 +76,17 @@ def send_to_zabbix(key: str, value: int, config_file: str) -> None:
     completed_process = subprocess.run(args)
 
 
-def start_backup(backup_file: str, append_date: bool = False):
+def start_backup(backup_file: str,
+                 append_timestamp: bool = False,
+                 multithreaded: bool = False
+                 ):
     logger = logging.getLogger(LOGGER_NAME)
-    command = 'tsm'
+    if append_timestamp:
+        backup_file += '-'+  get_timestamp()
     args = f'source /etc/profile.d/tableau_server.sh; tsm maintenance backup --ignore-prompt --file {backup_file}'
 
-    if append_date:
-        args += ' --append-date'
-
+    if multithreaded:
+        args += ' --multithreaded'
     logger.debug(f'subprocess.run: "{args}"')
     start_backup_time = time.time()
     completed_process = subprocess.run(args, capture_output=True, shell=True)
@@ -109,7 +116,8 @@ def main():
 
         tsm_return_code, tsm_stdout,  tsm_stderr, tsm_backup_duration = start_backup(
             backup_file = backup_conf['backup_file'],
-            append_date = backup_conf.getboolean('append_date')
+            append_timestamp = backup_conf.getboolean('append_timestamp'),
+            multithreaded = backup_conf.getboolean('multithreaded')
         )
 
         # # ToDo
