@@ -165,7 +165,7 @@ def main():
                            value=tsm_exit_code,
                            config_file=zab_conf['config_file'])
 
-        if tsm_return_code != 0:
+        if tsm_backup_result_code != 0:
             logger.error('tsm exit code isn\'t zero:\n' + tsm_stdout +   tsm_stderr)
 
     # UPLOAD
