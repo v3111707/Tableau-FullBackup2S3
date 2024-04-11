@@ -144,20 +144,25 @@ def main():
     if sys.argv[1] == 'backup':
         logger.info('Starting backup')
 
-        tsm_return_code, tsm_stdout,  tsm_stderr, tsm_backup_duration = start_backup(
+        tsm_exit_code, tsm_stdout,  tsm_stderr, tsm_backup_duration = start_backup(
             backup_file = backup_conf['backup_file'],
             append_timestamp = backup_conf.getboolean('append_timestamp'),
             multithreaded = backup_conf.getboolean('multithreaded')
         )
+        tsm_backup_result_code = 0  if 'Backup written to ' in tsm_stdout else 1
 
-        logger.debug(f'{tsm_stdout=},\n {tsm_stderr=},\n {tsm_backup_duration=},\n {tsm_return_code=}')
+        logger.debug(f'{tsm_stdout=},\n {tsm_stderr=},\n {tsm_backup_duration=},\n {tsm_exit_code=}')
 
         if zab_conf:
-            send_to_zabbix(key='tsm_backup_duration',
-                           value=int(tsm_backup_duration),
+            if tsm_backup_result_code == 0:
+                send_to_zabbix(key='tsm_backup_duration',
+                               value=int(tsm_backup_duration),
+                               config_file=zab_conf['config_file'])
+            send_to_zabbix(key='tsm_backup_result_code',
+                           value=tsm_backup_result_code,
                            config_file=zab_conf['config_file'])
-            send_to_zabbix(key='tsm_backup_exitcode',
-                           value=tsm_return_code,
+            send_to_zabbix(key='tsm_exit_code',
+                           value=tsm_exit_code,
                            config_file=zab_conf['config_file'])
 
         if tsm_return_code != 0:
