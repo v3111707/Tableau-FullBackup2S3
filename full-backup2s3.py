@@ -108,7 +108,7 @@ def start_backup(backup_file: str,
                  ):
     logger = logging.getLogger(LOGGER_NAME)
     if append_timestamp:
-        backup_file += '-'+  get_timestamp()
+        backup_file += '_'+  get_timestamp()
     args = f'source /etc/profile.d/tableau_server.sh; tsm maintenance backup --ignore-prompt --file {backup_file}'
 
     if multithreaded:
