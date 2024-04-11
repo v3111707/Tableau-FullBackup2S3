@@ -124,8 +124,13 @@ def start_backup(backup_file: str,
 
 
 def main():
+    if len(sys.argv) == 1 or sys.argv[1] not in POSSIBLE_COMMANDS:
+        print_help()
+        sys.exit('\nMissing or unsupported command')
+
     logger = init_logger(name=LOGGER_NAME,
                          debug='-d' in sys.argv)
+
 
     config = get_config(CONFIG_FILE)
     backup_conf = config['Backup']
@@ -134,11 +139,6 @@ def main():
 
     if 'Logging' in config.sections():
         init_filelogger(name=LOGGER_NAME, **config['Logging'])
-
-
-    if len(sys.argv) == 1 or sys.argv[1] not in POSSIBLE_COMMANDS:
-        print_help()
-        sys.exit('\nMissing or unsupported command')
 
     #BACKUP
     if sys.argv[1] == 'backup':
