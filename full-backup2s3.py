@@ -23,7 +23,7 @@ HELP_MESSAGE = [
 ]
 
 
-def init_logger(name: str = None, debug: bool = False, ) -> logging.Logger:
+def init_logger(name: str = None, debug: bool = False) -> logging.Logger:
     logger = logging.getLogger(name)
     sh = logging.StreamHandler(sys.stdout)
     sh.setFormatter(logging.Formatter('%(asctime)s - %(name)s: %(message)s'))
@@ -36,11 +36,11 @@ def init_logger(name: str = None, debug: bool = False, ) -> logging.Logger:
 
 
 def init_filelogger(filename: str,
-                     when: str,
-                     interval: int,
-                     backup_count: int,
-                     name: str = None,
-                     debug: bool = False, ) -> None:
+                    when: str,
+                    interval: int,
+                    backup_count: int,
+                    name: str = None,
+                    debug: bool = False) -> None:
     formatter = logging.Formatter('%(asctime)s: %(message)s')
     script_dir = os.path.dirname(os.path.realpath(__file__))
     filename_path = os.path.join(script_dir, filename)
@@ -97,7 +97,7 @@ def send_to_zabbix(key: str, value: int, config_file: str) -> None:
         '-o',
         str(value)
     ]
-    logger.info(f'Send to Zabbix {key} - {value}')
+    logger.info(f'Send to Zabbix" {key=},  {value=}')
     logger.debug(f'Running command: {" ".join(args)}')
     completed_process = subprocess.run(args)
 
@@ -138,7 +138,13 @@ def main():
     zab_conf = config['Zabbix'] if 'Zabbix' in config.sections() else None
 
     if 'Logging' in config.sections():
-        init_filelogger(name=LOGGER_NAME, **config['Logging'])
+        log_conf = config['Logging']
+        init_filelogger(name=LOGGER_NAME,
+                        filename=log_conf['filename'],
+                        when=log_conf['when'],
+                        interval=log_conf.getint('interval'),
+                        backup_count=log_conf.getint('backup_count'),
+                        debug=log_conf.getboolean('debug'))
 
     #BACKUP
     if sys.argv[1] == 'backup':
@@ -151,7 +157,8 @@ def main():
         )
         tsm_backup_result_code = 0  if 'Backup written to ' in tsm_stdout else 1
 
-        logger.debug(f'{tsm_stdout=},\n {tsm_stderr=},\n {tsm_backup_duration=},\n {tsm_exit_code=}')
+        logger.debug(f'{tsm_stdout=},\n {tsm_stderr=},\n {tsm_exit_code=}')
+        logger.info(f'{tsm_backup_duration=} sec,\n {tsm_backup_result_code=}')
 
         if zab_conf:
             if tsm_backup_result_code == 0:
@@ -182,8 +189,6 @@ def main():
         for dir_entry in os.scandir(backup_dir):
             if dir_entry.is_file() and dir_entry.name.endswith('.tsbak'):
                 backup_file_size = int(os.stat(dir_entry.path).st_size )
-
-                logger.info(f'Processing file "{dir_entry.name}", size: {backup_file_size / (1024 * 1024)} MB')
                 process = subprocess.Popen([
                     'md5sum',
                     dir_entry.name,
@@ -193,6 +198,10 @@ def main():
                 )
 
                 upload_result_code = 0
+                upload_duration = 0
+                logger.info(f'Uploading file "{dir_entry.name}", '
+                             f'size: {int(backup_file_size / (1024 * 1024))} MB '
+                             f'to {aws_conf["bucket_name"]}')
                 start_upload_time = time.time()
                 try:
                     s3_client.upload_file(dir_entry.path, aws_conf['bucket_name'], dir_entry.name)
@@ -201,20 +210,20 @@ def main():
                     logger.error(e)
                     upload_result_code = 1
                 else:
+                    upload_duration = int(time.time() - start_upload_time)
                     logger.info(f'Remove: {dir_entry.path}')
                     os.remove(dir_entry.path)
-                upload_duration = int(time.time() - start_upload_time)
 
                 md5sum_output = [l.decode() for l in process.communicate() if l]
                 md5sum = ''.join(md5sum_output)
-                logger.info(f'Uploading md5sum "{md5sum}')
+                logger.info(f'Uploading md5sum: "{dir_entry.name}.md5sum.txt" to {aws_conf["bucket_name"]}", ')
                 s3_client.put_object(
                     Body=md5sum,
                     Bucket=aws_conf['bucket_name'],
                     Key=f'{dir_entry.name}.md5sum.txt'
                 )
 
-                if zab_conf:
+                if zab_conf and not upload_result_code:
                     send_to_zabbix(key='backup_file_size',
                                    value=backup_file_size,
                                    config_file=zab_conf['config_file'])
@@ -224,7 +233,7 @@ def main():
                     send_to_zabbix(key='upload_duration',
                                    value=upload_duration,
                                    config_file=zab_conf['config_file'])
-                logger.info('Uploaded')
+    logger.info('End')
 
 
 if __name__ == '__main__':
