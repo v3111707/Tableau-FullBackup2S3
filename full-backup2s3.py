@@ -148,6 +148,12 @@ def main():
 
     #BACKUP
     if sys.argv[1] == 'backup':
+
+        if zab_conf:
+            send_to_zabbix(key='full-backup2s3.heartbeat',
+                           value=1,
+                           config_file=zab_conf['config_file'])
+
         logger.info('Starting backup')
 
         tsm_exit_code, tsm_stdout,  tsm_stderr, tsm_backup_duration = start_backup(
@@ -162,15 +168,21 @@ def main():
 
         if zab_conf:
             if tsm_backup_result_code == 0:
-                send_to_zabbix(key='tsm_backup_duration',
-                               value=int(tsm_backup_duration),
-                               config_file=zab_conf['config_file'])
-            send_to_zabbix(key='tsm_backup_result_code',
-                           value=tsm_backup_result_code,
-                           config_file=zab_conf['config_file'])
-            send_to_zabbix(key='tsm_exit_code',
-                           value=tsm_exit_code,
-                           config_file=zab_conf['config_file'])
+                send_to_zabbix(
+                    key='full-backup2s3.tsm.backup_duration',
+                    value=int(tsm_backup_duration),
+                    config_file=zab_conf['config_file']
+                )
+            send_to_zabbix(
+                key='full-backup2s3.tsm.backup_result_code',
+                value=tsm_backup_result_code,
+                config_file=zab_conf['config_file']
+            )
+            send_to_zabbix(
+                key='full-backup2s3.tsm.exit_code',
+                value=tsm_exit_code,
+                config_file=zab_conf['config_file']
+            )
 
         if tsm_backup_result_code != 0:
             logger.error('tsm exit code isn\'t zero:\n' + tsm_stdout +   tsm_stderr)
@@ -224,15 +236,21 @@ def main():
                 )
 
                 if zab_conf and not upload_result_code:
-                    send_to_zabbix(key='backup_file_size',
-                                   value=backup_file_size,
-                                   config_file=zab_conf['config_file'])
-                    send_to_zabbix(key='upload_result_code',
-                                   value=upload_result_code,
-                                   config_file=zab_conf['config_file'])
-                    send_to_zabbix(key='upload_duration',
-                                   value=upload_duration,
-                                   config_file=zab_conf['config_file'])
+                    send_to_zabbix(
+                        key='full-backup2s3.backup_file_size',
+                        value=backup_file_size,
+                        config_file=zab_conf['config_file']
+                    )
+                    send_to_zabbix(
+                        key='full-backup2s3.upload_result_code',
+                        value=upload_result_code,
+                        config_file=zab_conf['config_file']
+                    )
+                    send_to_zabbix(
+                        key='full-backup2s3.upload_duration',
+                        value=upload_duration,
+                        config_file=zab_conf['config_file']
+                    )
     logger.info('End')
 
 
