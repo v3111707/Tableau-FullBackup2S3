@@ -1,0 +1,14 @@
+{
+    "Version": "2012-10-17",
+    "Id": "Policy1710941498068",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::204515502917:user/bot-tableau-backup"
+            },
+            "Action": "s3:PutObject",
+            "Resource": "arn:aws:s3:::tableau-server-dwh-full-backup/*"
+        }
+    ]
+}

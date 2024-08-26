@@ -35,21 +35,25 @@ def init_logger(name: str = None, debug: bool = False) -> logging.Logger:
     return logger
 
 
-def init_filelogger(filename: str,
-                    when: str,
-                    interval: int,
-                    backup_count: int,
-                    name: str = None,
-                    debug: bool = False) -> None:
+def init_filelogger(
+        filename: str,
+        when: str,
+        interval: int,
+        backup_count: int,
+        name: str = None,
+        debug: bool = False
+) -> None:
     formatter = logging.Formatter('%(asctime)s: %(message)s')
     script_dir = os.path.dirname(os.path.realpath(__file__))
     filename_path = os.path.join(script_dir, filename)
     backup_count = int(backup_count)
     interval = int(interval)
-    handler = TimedRotatingFileHandler(filename=filename_path,
-                                       when=when,
-                                       interval=interval,
-                                       backupCount=backup_count)
+    handler = TimedRotatingFileHandler(
+        filename=filename_path,
+        when=when,
+        interval=interval,
+        backupCount=backup_count
+    )
     handler.setFormatter(formatter)
     logger = logging.getLogger(name)
     logger.addHandler(handler)
@@ -102,13 +106,14 @@ def send_to_zabbix(key: str, value: int, config_file: str) -> None:
     completed_process = subprocess.run(args)
 
 
-def start_backup(backup_file: str,
-                 append_timestamp: bool = False,
-                 multithreaded: bool = False
-                 ):
+def start_backup(
+        backup_file: str,
+        append_timestamp: bool = False,
+        multithreaded: bool = False
+):
     logger = logging.getLogger(LOGGER_NAME)
     if append_timestamp:
-        backup_file += '_'+  get_timestamp()
+        backup_file += '_' + get_timestamp()
     args = f'source /etc/profile.d/tableau_server.sh; tsm maintenance backup --ignore-prompt --file {backup_file}'
 
     if multithreaded:
@@ -123,6 +128,95 @@ def start_backup(backup_file: str,
             tsm_backup_duration_time)
 
 
+class S3Wrapper:
+    def __init__(
+            self,
+            region_name: str,
+            aws_access_key_id: str,
+            aws_secret_access_key: str,
+    ):
+        self.logger = logging.getLogger(f'{LOGGER_NAME}.S3Wrapper')
+        self.b3_session = boto3.session.Session(
+            region_name=region_name,
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+        )
+        sts = self.b3_session.client(
+            service_name='sts',
+
+        )
+        # Check creds
+        resp = sts.get_caller_identity()
+        # self.logger.debug(resp)
+        self.s3_client = self.b3_session.client(
+            service_name='s3',
+        )
+
+    def put_object(
+            self,
+            body: str,
+            bucket: str,
+            key: str,
+    ):
+        resp = self.s3_client.put_object(
+            Body=body,
+            Bucket=bucket,
+            Key=key,
+        )
+        return resp
+
+    def upload_file(
+            self,
+            file: str,
+            bucket: str,
+            key: str,
+    ):
+        self.logger.info(f'Start upload upload: "{file}" in "{bucket}"')
+        resp = self.s3_client.upload_file(
+            Filename=file,
+            Bucket=bucket,
+            Key=key,
+            ExtraArgs={
+                "ChecksumAlgorithm": "SHA256"
+            },
+        )
+        self.logger.debug(f'End upload upload: "{file}"')
+        return resp
+
+    def upload_file_with_md5sum(
+            self,
+            file: str,
+            bucket: str,
+            key: str,
+    ):
+        filedir, filename = file.rsplit('/', 1)
+        self.logger.info(f'Start calculate md5sum for: "{file}"')
+        process = subprocess.Popen([
+            'md5sum',
+            filename,
+        ],
+            cwd=filedir,
+            stdout=subprocess.PIPE
+        )
+        resp = self.upload_file(
+            file=file,
+            bucket=bucket,
+            key=key,
+        )
+        md5sum_output = [l.decode() for l in process.communicate() if l]
+        md5sum = ''.join(md5sum_output)
+        self.logger.info(f'md5sum: "{md5sum}"')
+
+        md5sum_filename = f'{filename}.md5sum.txt'
+        self.logger.info(f'Uploading md5sum: "{md5sum_filename}" to "{bucket}"')
+        self.put_object(
+            body=md5sum,
+            bucket=bucket,
+            key=md5sum_filename
+        )
+        return md5sum
+
+
 def main():
     if len(sys.argv) == 1 or sys.argv[1] not in POSSIBLE_COMMANDS:
         print_help()
@@ -130,7 +224,6 @@ def main():
 
     logger = init_logger(name=LOGGER_NAME,
                          debug='-d' in sys.argv)
-
 
     config = get_config(CONFIG_FILE)
     backup_conf = config['Backup']
@@ -146,9 +239,8 @@ def main():
                         backup_count=log_conf.getint('backup_count'),
                         debug=log_conf.getboolean('debug'))
 
-    #BACKUP
+    # BACKUP
     if sys.argv[1] == 'backup':
-
         if zab_conf:
             send_to_zabbix(key='full-backup2s3.heartbeat',
                            value=1,
@@ -156,12 +248,12 @@ def main():
 
         logger.info('Starting backup')
 
-        tsm_exit_code, tsm_stdout,  tsm_stderr, tsm_backup_duration = start_backup(
-            backup_file = backup_conf['backup_file'],
-            append_timestamp = backup_conf.getboolean('append_timestamp'),
-            multithreaded = backup_conf.getboolean('multithreaded')
+        tsm_exit_code, tsm_stdout, tsm_stderr, tsm_backup_duration = start_backup(
+            backup_file=backup_conf['backup_file'],
+            append_timestamp=backup_conf.getboolean('append_timestamp'),
+            multithreaded=backup_conf.getboolean('multithreaded')
         )
-        tsm_backup_result_code = 0  if 'Backup written to ' in tsm_stdout else 1
+        tsm_backup_result_code = 0 if 'Backup written to ' in tsm_stdout else 1
 
         logger.debug(f'{tsm_stdout=},\n {tsm_stderr=},\n {tsm_exit_code=}')
         logger.info(f'{tsm_backup_duration=} sec,\n {tsm_backup_result_code=}')
@@ -185,38 +277,32 @@ def main():
             )
 
         if tsm_backup_result_code != 0:
-            logger.error('tsm exit code isn\'t zero:\n' + tsm_stdout +   tsm_stderr)
+            logger.error('tsm exit code isn\'t zero:\n' + tsm_stdout + tsm_stderr)
 
     # UPLOAD
     logger.info('Starting upload')
     if sys.argv[1] in ['backup', 'upload']:
-        s3_client = boto3.client(
-            service_name='s3',
+        s3_wrapper = S3Wrapper(
             region_name=aws_conf['region_name'],
             aws_access_key_id=aws_conf['aws_access_key_id'],
             aws_secret_access_key=aws_conf['aws_secret_access_key']
         )
-
         backup_dir = backup_conf['backup_dir']
         for dir_entry in os.scandir(backup_dir):
             if dir_entry.is_file() and dir_entry.name.endswith('.tsbak'):
-                backup_file_size = int(os.stat(dir_entry.path).st_size )
-                process = subprocess.Popen([
-                    'md5sum',
-                    dir_entry.name,
-                ],
-                    cwd=backup_dir,
-                    stdout=subprocess.PIPE
-                )
-
+                backup_file_size = int(os.stat(dir_entry.path).st_size)
                 upload_result_code = 0
                 upload_duration = 0
                 logger.info(f'Uploading file "{dir_entry.name}", '
-                             f'size: {int(backup_file_size / (1024 * 1024))} MB '
-                             f'to {aws_conf["bucket_name"]}')
+                            f'size: {int(backup_file_size / (1024 * 1024))} MB '
+                            f'to {aws_conf["bucket_name"]}')
                 start_upload_time = time.time()
                 try:
-                    s3_client.upload_file(dir_entry.path, aws_conf['bucket_name'], dir_entry.name)
+                    s3_wrapper.upload_file(
+                        file=dir_entry.path,
+                        bucket=aws_conf['bucket_name'],
+                        key=dir_entry.name,
+                    )
                 except Exception as e:
                     # logger.exception(e)
                     logger.error(e)
@@ -225,15 +311,6 @@ def main():
                     upload_duration = int(time.time() - start_upload_time)
                     logger.info(f'Remove: {dir_entry.path}')
                     os.remove(dir_entry.path)
-
-                md5sum_output = [l.decode() for l in process.communicate() if l]
-                md5sum = ''.join(md5sum_output)
-                logger.info(f'Uploading md5sum: "{dir_entry.name}.md5sum.txt" to {aws_conf["bucket_name"]}", ')
-                s3_client.put_object(
-                    Body=md5sum,
-                    Bucket=aws_conf['bucket_name'],
-                    Key=f'{dir_entry.name}.md5sum.txt'
-                )
 
                 if zab_conf and not upload_result_code:
                     send_to_zabbix(
