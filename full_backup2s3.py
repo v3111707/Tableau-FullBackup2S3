@@ -19,7 +19,7 @@ HELP_MESSAGE = [
     'Usage: full-backup2s3  ',
     'Commands:',
     '   backup    --  Runs "tsm maintenance backup" and after completion starts the "upload" command.',
-    '   upload    --  Upload all *.tsbak files in the backup folder to S3 and remove its',
+    '   upload    --  Upload all *.tsbak files in the backup folder to S3 and then remove its',
 ]
 
 
@@ -298,7 +298,7 @@ def main():
                             f'to {aws_conf["bucket_name"]}')
                 start_upload_time = time.time()
                 try:
-                    s3_wrapper.upload_file(
+                    s3_wrapper.upload_file_with_md5sum(
                         file=dir_entry.path,
                         bucket=aws_conf['bucket_name'],
                         key=dir_entry.name,
